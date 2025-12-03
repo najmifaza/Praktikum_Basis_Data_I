@@ -1,0 +1,171 @@
+CREATE DATABASE PetshopDB;
+USE PetshopDB;
+
+CREATE TABLE Hewan (
+    kode_hewan varchar(5) PRIMARY KEY,
+    nama_hewan VARCHAR(100) NOT NULL,
+    tipe VARCHAR(50)
+);
+
+CREATE TABLE Item (
+    kode_item varchar(5) PRIMARY KEY,
+    nama_item VARCHAR(100) NOT NULL,
+    kategori VARCHAR(50),
+    stok INT DEFAULT 0,
+    harga DECIMAL(10, 2) NOT NULL
+);
+
+
+CREATE TABLE Pesanan (
+    kode_pesanan varchar(5) PRIMARY KEY,
+    kode_hewan varchar(5) NOT NULL,
+    kode_item varchar(5) NOT NULL,
+    tanggal DATE NOT NULL,
+    jumlah INT NOT NULL,
+    
+    -- Definisi Foreign Keys
+    FOREIGN KEY (kode_hewan) REFERENCES Hewan(kode_hewan),
+    FOREIGN KEY (kode_item) REFERENCES Item(kode_item)
+);
+
+INSERT INTO Hewan (kode_hewan, nama_hewan, tipe) VALUES
+('H01', 'Kucing', 'Mamalia'),
+('H02', 'Anjing', 'Mamalia'),
+('H03', 'Gagak', 'Burung');
+
+INSERT INTO Item (kode_item, nama_item, kategori, stok, harga) VALUES
+('IT01', 'Whiskas Tuna 1kg', 'Makanan', 30, 25000.00),
+('IT02', 'Dog Treat Bone', 'Makanan', 20, 30000.00),
+('IT03', 'Grooming Basic', 'Grooming', 10, 70000.00);
+
+INSERT INTO Pesanan (kode_pesanan, kode_hewan, kode_item, tanggal, jumlah) VALUES
+('P01', 'H01', 'IT01', '2025-10-24', 2),
+('P02', 'H02', 'IT02', '2025-11-05', 1);
+
+-- 1. Buat user 'admin_hokie'
+CREATE USER 'admin_hokie'@'localhost' IDENTIFIED BY 'adminhokie2323';
+
+-- 2. Berikan SEMUA hak akses pada database PetshopDB
+GRANT ALL PRIVILEGES ON PetshopDB.* TO 'admin_hokie'@'localhost';
+
+-- 3. Terapkan perubahan hak akses
+FLUSH PRIVILEGES;
+
+-- 1. Buat user 'kasir_hokie'
+CREATE USER 'kasir_hokie'@'localhost' IDENTIFIED BY 'kasirdimanja';
+
+-- 2. Berikan hak akses spesifik (SELECT, INSERT, UPDATE) hanya pada tabel Pesanan
+GRANT SELECT, INSERT, UPDATE ON PetshopDB.Pesanan TO 'kasir_hokie'@'localhost';
+
+-- 3. Terapkan perubahan hak akses
+FLUSH PRIVILEGES;
+
+--Perintah untuk menampilkan hak akses:
+SHOW GRANTS FOR 'admin_hokie'@'localhost';
+
+
+
+-- Buat View untuk Kasir
+CREATE VIEW v_item AS
+SELECT
+    nama_item,
+    stok,
+    harga
+FROM
+    Item;
+
+-- Berikan hak SELECT pada View v_item kepada kasir_hokie
+GRANT SELECT ON PetshopDB.v_item TO 'kasir_hokie'@'localhost';
+
+-- Terapkan perubahan hak akses
+FLUSH PRIVILEGES;
+
+--Konfirmasi Hak Akses kasir_hokie
+SHOW GRANTS FOR 'kasir_hokie'@'localhost';
+
+
+-- untuk menggabungkan kolom menjadi format kalimat
+SELECT DISTINCT
+    'Di toko ada' AS Kalimat_Awal,
+    I.nama_item AS nama_item,
+    'dengan kategori' AS Kalimat_Penghubung_1,
+    I.kategori AS kategori,
+    'sebanyak' AS Kalimat_Penghubung_2,
+    I.stok AS stok
+FROM
+    Item I
+INNER JOIN
+    Pesanan P ON I.kode_item = P.kode_item;
+
+-- Query untuk menampilkan nama_hewan yang huruf terakhirnya adalah 'k'
+SELECT
+    nama_hewan
+FROM
+    Hewan
+WHERE
+    nama_hewan LIKE '%k';
+
+-- Mengubah delimiter sementara agar sintaks CREATE TRIGGER bisa dieksekusi sebagai satu blok
+
+
+-- Membuat Trigger 'kurangiStok'
+DELIMITER $$
+CREATE TRIGGER kurangiStok
+AFTER INSERT ON Pesanan
+FOR EACH ROW
+BEGIN
+    -- Perbaikan: Menggunakan perintah UPDATE penuh, menunjuk ke tabel 'Item'
+    UPDATE Item
+    SET stok = stok - NEW.jumlah
+    WHERE kode_item = NEW.kode_item;
+END$$
+DELIMITER ;
+
+--Memasukkan Data Pesanan yang Lupa
+-- Pastikan login sebagai 'kasir_hokie'@'localhost'
+USE PetshopDB;
+
+-- Memasukkan Pesanan P04
+INSERT INTO Pesanan (kode_pesanan, kode_hewan, kode_item, tanggal, jumlah) VALUES
+('P04', 'H02', 'IT02', CURDATE(), 5);
+
+-- Memasukkan Pesanan P05
+INSERT INTO Pesanan (kode_pesanan, kode_hewan, kode_item, tanggal, jumlah) VALUES
+('P05', 'H03', 'IT03', CURDATE(), 1);
+
+-- Kasir hanya perlu SELECT dari View v_item
+SELECT * FROM v_item;
+
+--Laporan Ringkasan Transaksi (JOIN 3 Tabel)
+-- Pastikan login sebagai root atau admin_hokie
+USE PetshopDB;
+
+SELECT
+    P.tanggal,
+    P.jumlah,
+    H.nama_hewan,
+    I.nama_item
+FROM
+    Pesanan P
+INNER JOIN
+    Hewan H ON P.kode_hewan = H.kode_hewan
+INNER JOIN
+    Item I ON P.kode_item = I.kode_item
+ORDER BY
+    P.jumlah DESC; -- Mengurutkan dari Terbanyak (DESCending)
+
+--Pencabutan Hak Akses Kasir (Revoke Privileges)
+-- Pastikan login sebagai root atau user yang memiliki hak GRANT OPTION
+USE PetshopDB;
+
+-- Mencabut hak akses SELECT, INSERT, dan UPDATE pada tabel Pesanan
+REVOKE SELECT, INSERT, UPDATE ON PetshopDB.Pesanan FROM 'kasir_hokie'@'localhost';
+
+-- Mencabut hak akses SELECT pada View v_item (agar tidak bisa melihat stok lagi)
+REVOKE SELECT ON PetshopDB.v_item FROM 'kasir_hokie'@'localhost';
+
+-- Terapkan perubahan hak akses
+FLUSH PRIVILEGES;
+
+--Konfirmasi Pencabutan Hak Akses
+SHOW GRANTS FOR 'kasir_hokie'@'localhost';
