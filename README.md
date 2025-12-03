@@ -59,7 +59,7 @@ Proyek-proyek dan skrip dalam repositori ini menggunakan teknologi berikut:
 
 | Kategori | Detail |
 | :--- | :--- |
-| **Sistem Basis Data (RDBMS)** | MySQL / Oracle (Asumsi, umum digunakan dalam praktikum) |
+| **Sistem Basis Data (RDBMS)** | MySQL  |
 | **Bahasa Kueri** | SQL (Structured Query Language) |
 | **Dokumentasi** | Microsoft Word (`.docx`), PDF (`.pdf`) |
 
